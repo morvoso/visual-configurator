@@ -31,12 +31,16 @@ export class ConfigEditorPanel {
     panel.webview.html = this.getHtml(panel.webview, configuration);
 
     panel.webview.onDidReceiveMessage(
-      async (message: SaveMessage) => {
+      async (message: SaveMessage | { type: string }) => {
+        if (message.type === 'cancel') {
+          panel.dispose();
+          return;
+        }
         if (message.type !== 'save') {
           return;
         }
 
-        await onSave(message.payload);
+        await onSave((message as SaveMessage).payload);
         panel.dispose();
       },
       undefined,
@@ -149,6 +153,235 @@ export class ConfigEditorPanel {
   </div>
 
   <div class="actions">
+        * {
+          box-sizing: border-box;
+        }
+        body {
+          font-family: var(--vscode-font-family);
+          color: var(--vscode-editor-foreground);
+          background: var(--vscode-editor-background);
+          margin: 0;
+          padding: 16px;
+        }
+        .container {
+          max-width: 800px;
+          margin: 0 auto;
+        }
+        h1 {
+          margin-top: 0;
+          font-size: 20px;
+          margin-bottom: 24px;
+        }
+        .section {
+          margin-bottom: 8px;
+          border: 1px solid var(--vscode-input-border);
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        .section-header {
+          display: flex;
+          align-items: center;
+          padding: 12px 14px;
+          background: var(--vscode-input-background);
+          cursor: pointer;
+          user-select: none;
+          gap: 8px;
+        }
+        .section-header:hover {
+          background: var(--vscode-button-hoverBackground);
+        }
+        .section-header h2 {
+          margin: 0;
+          font-size: 14px;
+          font-weight: 600;
+          flex: 1;
+        }
+        .section-toggle {
+          width: 20px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          color: var(--vscode-input-foreground);
+        }
+        .section.collapsed .section-content {
+          display: none;
+        }
+        .section-content {
+          padding: 14px 14px;
+          display: grid;
+          grid-template-columns: 200px 1fr;
+          gap: 12px 14px;
+          align-items: start;
+        }
+        label {
+          font-size: 12px;
+          opacity: 0.9;
+          padding-top: 8px;
+        }
+        input, textarea, select {
+          width: 100%;
+          box-sizing: border-box;
+          background: var(--vscode-input-background);
+          color: var(--vscode-input-foreground);
+          border: 1px solid var(--vscode-input-border);
+          padding: 7px;
+          border-radius: 4px;
+          font-family: var(--vscode-font-family);
+          font-size: 12px;
+        }
+        textarea {
+          min-height: 70px;
+          resize: vertical;
+          font-family: monospace;
+        }
+        input:focus, textarea:focus, select:focus {
+          outline: 1px solid var(--vscode-focusBorder);
+        }
+        .checkbox-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding-top: 8px;
+        }
+        .checkbox-row input[type="checkbox"] {
+          width: auto;
+          height: 16px;
+        }
+        .checkbox-row label {
+          padding-top: 0;
+          font-weight: 500;
+        }
+        .form-row {
+          grid-column: 1 / -1;
+          display: grid;
+          grid-template-columns: 200px 1fr;
+          gap: 12px 14px;
+          align-items: start;
+        }
+        .form-row label {
+          grid-column: 1;
+        }
+        .form-row input, .form-row textarea, .form-row select {
+          grid-column: 2;
+        }
+        .env-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+          margin-top: 8px;
+          grid-column: 1 / -1;
+        }
+        .env-table th {
+          text-align: left;
+          padding: 8px;
+          border-bottom: 1px solid var(--vscode-input-border);
+          background: var(--vscode-input-background);
+          font-weight: 600;
+        }
+        .env-table td {
+          padding: 8px;
+          border-bottom: 1px solid var(--vscode-input-border);
+        }
+        .env-table tr:hover {
+          background: var(--vscode-input-background);
+        }
+        .env-table input {
+          margin: 0;
+          font-size: 11px;
+        }
+        .env-table-header-row {
+          grid-column: 1 / -1;
+        }
+        .env-actions {
+          margin-top: 8px;
+          display: flex;
+          gap: 6px;
+          grid-column: 1 / -1;
+        }
+        button.icon-button {
+          background: var(--vscode-button-background);
+          color: var(--vscode-button-foreground);
+          border: none;
+          border-radius: 3px;
+          padding: 4px 8px;
+          cursor: pointer;
+          font-size: 11px;
+          display: inline-block;
+        }
+        button.icon-button:hover {
+          background: var(--vscode-button-hoverBackground);
+        }
+        .docker-content {
+          display: none;
+        }
+        .docker-content.show {
+          display: grid;
+          grid-column: 1 / -1;
+        }
+        .advanced-docker {
+          display: none;
+          grid-column: 1 / -1;
+          padding-top: 8px;
+          border-top: 1px solid var(--vscode-input-border);
+          margin-top: 8px;
+        }
+        .advanced-docker.show {
+          display: grid;
+          grid-template-columns: 200px 1fr;
+          gap: 12px 14px;
+        }
+        .actions {
+          margin-top: 24px;
+          display: flex;
+          gap: 8px;
+          padding-top: 16px;
+          border-top: 1px solid var(--vscode-input-border);
+        }
+        button {
+          background: var(--vscode-button-background);
+          color: var(--vscode-button-foreground);
+          border: none;
+          border-radius: 4px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 12px;
+        }
+        button:hover {
+          background: var(--vscode-button-hoverBackground);
+        }
+        button.secondary {
+          background: var(--vscode-button-secondaryBackground);
+          color: var(--vscode-button-secondaryForeground);
+        }
+        button.secondary:hover {
+          background: var(--vscode-button-secondaryHoverBackground);
+        }
+        .info-text {
+          font-size: 11px;
+          opacity: 0.7;
+          margin-top: 4px;
+        }
+        .advanced-toggle {
+          background: none;
+          border: none;
+          color: var(--vscode-focusBorder);
+          cursor: pointer;
+          padding: 0;
+          font-size: 12px;
+          text-decoration: underline;
+          margin-top: 6px;
+        }
+        .docker-image-display {
+          padding: 8px;
+          background: var(--vscode-input-background);
+          border: 1px dashed var(--vscode-input-border);
+          border-radius: 3px;
+          font-size: 11px;
+          margin-top: 4px;
+        }
+    *** End Patch
     <button id="saveButton">Save</button>
     <button id="cancelButton" class="secondary">Cancel</button>
   </div>

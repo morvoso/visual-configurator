@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: compile",
+      "type": "shell",
+      "command": "/home/morvoso/.local/share/nvm/v25.8.1/bin/npm",
+      "args": [
+        "run",
+        "compile"
+      ],
+      "options": {
+        "env": {
+          "PATH": "/home/morvoso/.local/share/nvm/v25.8.1/bin:${env:PATH}"
+        }
+      },
+      "problemMatcher": "$tsc",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "npm: watch",
+      "type": "shell",
+      "command": "/home/morvoso/.local/share/nvm/v25.8.1/bin/npm",
+      "args": [
+        "run",
+        "watch"
+      ],
+      "options": {
+        "env": {
+          "PATH": "/home/morvoso/.local/share/nvm/v25.8.1/bin:${env:PATH}"
+        }
+      },
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "group": "build"
+    }
+  ]
+}

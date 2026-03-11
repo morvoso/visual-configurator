@@ -17,6 +17,10 @@ export interface BaseRunConfiguration {
   allowMultipleInstances: boolean;
   createdAt: string;
   updatedAt: string;
+  useDocker?: boolean;
+  dockerImageOverride?: string;
+  captureOutput?: boolean;
+  showTimestamps?: boolean;
 }
 
 export interface DotnetProjectConfiguration extends BaseRunConfiguration {
