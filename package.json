@@ -1,0 +1,176 @@
+{
+  "name": "visual-configurator",
+  "displayName": "Visual Configurator",
+  "description": "JetBrains-inspired run configuration management for .NET and npm workflows in VS Code.",
+  "version": "0.0.1",
+  "publisher": "morvoso",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "visualConfigurator.refresh",
+        "title": "Refresh",
+        "category": "Visual Configurator",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "visualConfigurator.importDotnetProject",
+        "title": "Import .NET Project",
+        "category": "Visual Configurator"
+      },
+      {
+        "command": "visualConfigurator.importLaunchProfile",
+        "title": "Import Launch Profile",
+        "category": "Visual Configurator"
+      },
+      {
+        "command": "visualConfigurator.importNpmScript",
+        "title": "Import npm Script",
+        "category": "Visual Configurator"
+      },
+      {
+        "command": "visualConfigurator.setActiveConfiguration",
+        "title": "Set Active Configuration",
+        "category": "Visual Configurator"
+      },
+      {
+        "command": "visualConfigurator.runConfiguration",
+        "title": "Run Configuration",
+        "category": "Visual Configurator",
+        "icon": "$(play)"
+      },
+      {
+        "command": "visualConfigurator.debugConfiguration",
+        "title": "Debug Configuration",
+        "category": "Visual Configurator",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "visualConfigurator.editConfiguration",
+        "title": "Edit Configuration",
+        "category": "Visual Configurator",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "visualConfigurator.deleteConfiguration",
+        "title": "Delete Configuration",
+        "category": "Visual Configurator",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "visualConfigurator.stopConfiguration",
+        "title": "Stop Configuration",
+        "category": "Visual Configurator",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "visualConfigurator.syncWorkspaceFiles",
+        "title": "Sync launch/tasks Files",
+        "category": "Visual Configurator",
+        "icon": "$(sync)"
+      }
+    ],
+    "views": {
+      "debug": [
+        {
+          "id": "visualConfigurator.runConfigurations",
+          "name": "Run Configurations",
+          "contextualTitle": "Run Configurations"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "visualConfigurator.refresh",
+          "when": "view == visualConfigurator.runConfigurations",
+          "group": "navigation"
+        },
+        {
+          "command": "visualConfigurator.runConfiguration",
+          "when": "view == visualConfigurator.runConfigurations",
+          "group": "navigation@2"
+        },
+        {
+          "command": "visualConfigurator.debugConfiguration",
+          "when": "view == visualConfigurator.runConfigurations",
+          "group": "navigation@3"
+        },
+        {
+          "command": "visualConfigurator.stopConfiguration",
+          "when": "view == visualConfigurator.runConfigurations",
+          "group": "navigation@4"
+        },
+        {
+          "command": "visualConfigurator.syncWorkspaceFiles",
+          "when": "view == visualConfigurator.runConfigurations",
+          "group": "navigation@5"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "visualConfigurator.importDotnetProject",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == discoveredDotnetProject",
+          "group": "inline"
+        },
+        {
+          "command": "visualConfigurator.importLaunchProfile",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == discoveredLaunchProfile",
+          "group": "inline"
+        },
+        {
+          "command": "visualConfigurator.importNpmScript",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == discoveredNpmScript",
+          "group": "inline"
+        },
+        {
+          "command": "visualConfigurator.setActiveConfiguration",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
+          "group": "inline"
+        },
+        {
+          "command": "visualConfigurator.runConfiguration",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
+          "group": "inline@2"
+        },
+        {
+          "command": "visualConfigurator.debugConfiguration",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
+          "group": "inline@3"
+        },
+        {
+          "command": "visualConfigurator.editConfiguration",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
+          "group": "inline@4"
+        },
+        {
+          "command": "visualConfigurator.deleteConfiguration",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
+          "group": "inline@5"
+        },
+        {
+          "command": "visualConfigurator.stopConfiguration",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
+          "group": "inline@6"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.8.2"
+  }
+}
