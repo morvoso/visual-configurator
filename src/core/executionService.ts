@@ -38,6 +38,14 @@ export class ExecutionService {
   }
 
   public async run(configuration: RunConfiguration): Promise<void> {
+    if (!configuration.allowMultipleInstances) {
+      const existing = this.runningTaskExecutions.get(configuration.id) ?? [];
+      for (const execution of existing) {
+        execution.terminate();
+      }
+      this.runningTaskExecutions.set(configuration.id, []);
+    }
+
     const task = this.createTask(configuration);
     const execution = await vscode.tasks.executeTask(task);
     const executions = this.runningTaskExecutions.get(configuration.id) ?? [];

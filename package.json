@@ -144,19 +144,24 @@
           "group": "inline@3"
         },
         {
-          "command": "visualConfigurator.setActiveConfiguration",
+          "command": "visualConfigurator.editConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
           "group": "navigation@1"
         },
         {
-          "command": "visualConfigurator.stopConfiguration",
+          "command": "visualConfigurator.setActiveConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
           "group": "navigation@2"
         },
         {
-          "command": "visualConfigurator.deleteConfiguration",
+          "command": "visualConfigurator.stopConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
           "group": "navigation@3"
+        },
+        {
+          "command": "visualConfigurator.deleteConfiguration",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
+          "group": "navigation@4"
         }
       ]
     }
