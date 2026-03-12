@@ -133,7 +133,7 @@
         {
           "command": "visualConfigurator.setActiveConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
-          "group": "inline"
+          "group": "navigation"
         },
         {
           "command": "visualConfigurator.runConfiguration",
@@ -148,17 +148,17 @@
         {
           "command": "visualConfigurator.editConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
-          "group": "inline@4"
+          "group": "navigation@2"
         },
         {
           "command": "visualConfigurator.deleteConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
-          "group": "inline@5"
+          "group": "navigation@4"
         },
         {
           "command": "visualConfigurator.stopConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
-          "group": "inline@6"
+          "group": "navigation@3"
         }
       ]
     }

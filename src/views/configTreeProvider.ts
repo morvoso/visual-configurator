@@ -156,15 +156,18 @@ export class RunConfigurationsTreeProvider
   ): vscode.TreeItem {
     const activeId = this.configStore.getActiveConfigurationId();
     const isActive = activeId === node.configuration.id;
+    const kindLabel = describeSavedConfigurationKind(node.configuration);
     const item = new vscode.TreeItem(
       node.configuration.name,
       vscode.TreeItemCollapsibleState.None
     );
 
     item.contextValue = 'savedConfiguration';
-    item.description = isActive ? 'active' : node.configuration.kind;
-    item.iconPath = new vscode.ThemeIcon(isActive ? 'debug-alt' : 'circle-filled');
-    item.tooltip = node.configuration.workingDirectory;
+    item.description = isActive ? `Active | ${kindLabel}` : kindLabel;
+    item.iconPath = new vscode.ThemeIcon(
+      isActive ? 'debug-alt' : getSavedConfigurationIcon(node.configuration)
+    );
+    item.tooltip = createSavedConfigurationTooltip(node.configuration, isActive);
     item.command = {
       command: 'visualConfigurator.setActiveConfiguration',
       title: 'Set Active Configuration',
@@ -245,4 +248,40 @@ export class RunConfigurationsTreeProvider
 
     return item;
   }
+}
+
+function describeSavedConfigurationKind(configuration: RunConfiguration): string {
+  switch (configuration.kind) {
+    case 'npm-script':
+      return `npm: ${configuration.script}`;
+    case 'dotnet-launch-profile':
+      return `.NET: ${configuration.launchSettingsProfile}`;
+    case 'dotnet-project':
+      return '.NET project';
+  }
+}
+
+function getSavedConfigurationIcon(configuration: RunConfiguration): string {
+  switch (configuration.kind) {
+    case 'npm-script':
+      return 'terminal';
+    case 'dotnet-launch-profile':
+      return 'globe';
+    case 'dotnet-project':
+      return 'symbol-class';
+  }
+}
+
+function createSavedConfigurationTooltip(
+  configuration: RunConfiguration,
+  isActive: boolean
+): string {
+  const lines = [configuration.name, describeSavedConfigurationKind(configuration)];
+
+  if (isActive) {
+    lines.push('Active configuration');
+  }
+
+  lines.push(configuration.workingDirectory);
+  return lines.join('\n');
 }
