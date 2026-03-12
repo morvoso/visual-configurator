@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import { ConfigStore } from '../core/configStore';
-import { ConfigurationKind, RunConfiguration } from '../core/configTypes';
+import { RunConfiguration } from '../core/configTypes';
 
 export interface SavedConfigurationNode {
   type: 'savedConfiguration';
@@ -38,7 +38,7 @@ export class RunConfigurationsTreeProvider
 
     item.contextValue = 'savedConfiguration';
     item.description = isActive ? `● ${kindLabel}` : kindLabel;
-    item.iconPath = this.getIconForKind(element.configuration.kind);
+    item.iconPath = this.getIconForKind(element.configuration);
     item.tooltip = createTooltip(element.configuration, isActive);
     item.command = {
       command: 'visualConfigurator.setActiveConfiguration',
@@ -63,14 +63,19 @@ export class RunConfigurationsTreeProvider
   }
 
   private getIconForKind(
-    kind: ConfigurationKind
-  ): { light: vscode.Uri; dark: vscode.Uri } {
+    configuration: RunConfiguration
+  ): { light: vscode.Uri; dark: vscode.Uri } | vscode.ThemeIcon {
+    if (configuration.kind === 'custom') {
+      const typeDef = this.configStore.getCustomType(configuration.typeId);
+      return new vscode.ThemeIcon(typeDef?.icon ?? 'terminal');
+    }
+
     const base =
-      kind === 'npm-script'
+      configuration.kind === 'npm-script'
         ? 'npm'
-        : kind === 'docker'
+        : configuration.kind === 'docker'
           ? 'docker'
-          : kind === 'docker-compose'
+          : configuration.kind === 'docker-compose'
             ? 'compose'
             : 'dotnet';
 
@@ -103,6 +108,8 @@ function describeKind(configuration: RunConfiguration): string {
       return `${configuration.containerRuntime}: ${configuration.image}`;
     case 'docker-compose':
       return `${configuration.containerRuntime} compose`;
+    case 'custom':
+      return configuration.typeLabel;
   }
 }
 

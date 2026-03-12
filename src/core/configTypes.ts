@@ -5,7 +5,8 @@ export type ConfigurationKind =
   | 'dotnet-launch-profile'
   | 'npm-script'
   | 'docker'
-  | 'docker-compose';
+  | 'docker-compose'
+  | 'custom';
 
 export type PackageManager = 'npm' | 'yarn' | 'pnpm';
 
@@ -61,17 +62,39 @@ export interface DockerComposeConfiguration extends BaseRunConfiguration {
   kind: 'docker-compose';
   containerRuntime: ContainerRuntime;
   composeFilePath: string;
+  downOnStop: boolean;
   services: string[];
   profiles: string[];
   composeArgs: string[];
   upArgs: string[];
 }
 
+export interface CustomTypeDefinition {
+  id: string;
+  label: string;
+  description?: string;
+  /** codicon name without $(), e.g. "terminal", "gear", "play" */
+  icon?: string;
+  command: string;
+  defaultArgs: string[];
+  defaultEnv: Record<string, string>;
+}
+
+export interface CustomRunConfiguration extends BaseRunConfiguration {
+  kind: 'custom';
+  typeId: string;
+  /** Snapshot of the type label, preserved even if the type definition is later removed */
+  typeLabel: string;
+  command: string;
+  args: string[];
+}
+
 export type RunConfiguration =
   | DotnetProjectConfiguration
   | NpmScriptConfiguration
   | DockerConfiguration
-  | DockerComposeConfiguration;
+  | DockerComposeConfiguration
+  | CustomRunConfiguration;
 
 export interface LaunchSettingsProfile {
   name: string;
@@ -111,5 +134,12 @@ export interface DetectedNpmScript {
 
 export interface PersistedConfigState {
   activeConfigurationId?: string;
+  configurations: RunConfiguration[];
+}
+
+export interface WorkspaceConfigFile {
+  version: 1;
+  activeConfigurationId?: string;
+  customTypes: CustomTypeDefinition[];
   configurations: RunConfiguration[];
 }

@@ -406,6 +406,10 @@ export class ConfigEditorPanel {
       align-items: center;
     }
 
+    .hidden {
+      display: none;
+    }
+
   </style>
 </head>
 <body>
@@ -490,7 +494,7 @@ export class ConfigEditorPanel {
               </div>
             </div>
 
-            <div class="row">
+            <div class="row" id="fieldCRow">
               <label for="fieldC" id="fieldCLabel" class="field-label">Option:</label>
               <div class="control">
                 <select id="fieldC"></select>
@@ -529,6 +533,19 @@ export class ConfigEditorPanel {
             <div class="jb-section-header">
               <div class="jb-section-title">Advanced</div>
               <div class="jb-section-line"></div>
+            </div>
+
+            <div class="row hidden" id="downOnStopRow">
+              <label class="field-label">Compose:</label>
+              <div class="control">
+                <label class="jb-checkbox" for="downOnStop">
+                  <input id="downOnStop" type="checkbox" />
+                  <span class="jb-checkbox-text">
+                    <span>Run compose down on stop</span>
+                    <span class="hint">When Stop is pressed, also run compose down for this config.</span>
+                  </span>
+                </label>
+              </div>
             </div>
             
             <div class="row">
@@ -597,6 +614,7 @@ export class ConfigEditorPanel {
     };
 
     const setupKindSpecificFields = () => {
+      byId('fieldCRow').classList.remove('hidden');
       const fieldA = byId('fieldA');
       const fieldB = byId('fieldB');
       const fieldC = byId('fieldC');
@@ -633,6 +651,18 @@ export class ConfigEditorPanel {
         fieldB.value = (configuration.services || []).join(', ');
         fieldC.innerHTML = '<option value="docker">Docker</option><option value="podman">Podman</option>';
         fieldC.value = configuration.containerRuntime;
+        byId('downOnStopRow').classList.remove('hidden');
+        byId('downOnStop').checked = Boolean(configuration.downOnStop);
+      } else if (configuration.kind === 'custom') {
+        byId('fieldALabel').textContent = 'Command:';
+        byId('fieldBLabel').textContent = 'Arguments:';
+        byId('fieldCRow').classList.add('hidden');
+        byId('fieldAHint').textContent = 'Shell command to execute';
+        byId('fieldBHint').textContent = 'Space-separated arguments';
+        fieldA.value = configuration.command || '';
+        fieldB.value = (configuration.args || []).join(' ');
+        byId('downOnStopRow').classList.add('hidden');
+        byId('downOnStop').checked = false;
       } else {
         byId('fieldALabel').textContent = 'Program args:';
         byId('fieldBLabel').textContent = 'Runtime args:';
@@ -644,6 +674,8 @@ export class ConfigEditorPanel {
         fieldB.value = (configuration.runtimeArgs || []).join(' ');
         fieldC.innerHTML = '<option value="false">No</option><option value="true">Yes</option>';
         fieldC.value = String(Boolean(configuration.launchBrowser));
+        byId('downOnStopRow').classList.add('hidden');
+        byId('downOnStop').checked = false;
       }
     };
 
@@ -714,6 +746,10 @@ export class ConfigEditorPanel {
         updated.composeFilePath = byId('fieldA').value.trim() || updated.composeFilePath;
         updated.services = byId('fieldB').value.split(',').map(s => s.trim()).filter(Boolean);
         updated.containerRuntime = byId('fieldC').value;
+        updated.downOnStop = byId('downOnStop').checked;
+      } else if (updated.kind === 'custom') {
+        updated.command = byId('fieldA').value.trim() || updated.command;
+        updated.args = splitArgs(byId('fieldB').value);
       } else {
         updated.programArgs = splitArgs(byId('fieldA').value);
         updated.runtimeArgs = splitArgs(byId('fieldB').value);
@@ -751,6 +787,8 @@ function describeConfigurationKind(configuration: RunConfiguration): string {
       return `Container (${configuration.containerRuntime})`;
     case 'docker-compose':
       return `Compose (${configuration.containerRuntime})`;
+    case 'custom':
+      return configuration.typeLabel;
   }
 }
 
@@ -766,6 +804,8 @@ function describeConfigurationDetail(configuration: RunConfiguration): string {
       return 'Container-based execution using Docker or Podman with image, port, and volume configuration.';
     case 'docker-compose':
       return 'Multi-service orchestration using a Docker or Podman Compose file.';
+    case 'custom':
+      return 'Custom shell command configuration with user-defined type template.';
   }
 }
 
@@ -776,6 +816,8 @@ function getConfigurationBadgeClass(configuration: RunConfiguration): string {
     case 'docker':
     case 'docker-compose':
       return 'kind-docker';
+    case 'custom':
+      return 'kind-custom';
     default:
       return 'kind-dotnet';
   }

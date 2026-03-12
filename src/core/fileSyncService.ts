@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import {
+  CustomRunConfiguration,
   DockerComposeConfiguration,
   DockerConfiguration,
   DotnetProjectConfiguration,
@@ -56,6 +57,7 @@ export class FileSyncService {
           return [this.createNpmLaunchConfiguration(configuration)];
         case 'docker':
         case 'docker-compose':
+        case 'custom':
           return [];
       }
     });
@@ -78,6 +80,8 @@ export class FileSyncService {
           return [this.createDockerTaskDefinition(configuration)];
         case 'docker-compose':
           return [this.createDockerComposeTaskDefinition(configuration)];
+        case 'custom':
+          return [this.createCustomTaskDefinition(configuration)];
       }
     });
 
@@ -276,6 +280,22 @@ export class FileSyncService {
       args,
       options: {
         cwd: configuration.workingDirectory
+      },
+      problemMatcher: []
+    };
+  }
+
+  private createCustomTaskDefinition(
+    configuration: CustomRunConfiguration
+  ): Record<string, unknown> {
+    return {
+      label: this.taskLabelFor(configuration),
+      type: 'shell',
+      command: configuration.command,
+      args: configuration.args,
+      options: {
+        cwd: configuration.workingDirectory,
+        env: configuration.environment
       },
       problemMatcher: []
     };

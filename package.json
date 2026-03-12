@@ -66,6 +66,12 @@
         "title": "Sync launch/tasks Files",
         "category": "Visual Configurator",
         "icon": "$(sync)"
+      },
+      {
+        "command": "visualConfigurator.manageCustomTypes",
+        "title": "Manage Custom Types",
+        "category": "Visual Configurator",
+        "icon": "$(extensions)"
       }
     ],
     "views": {
@@ -114,6 +120,11 @@
           "command": "visualConfigurator.syncWorkspaceFiles",
           "when": "view == visualConfigurator.runConfigurations",
           "group": "navigation@6"
+        },
+        {
+          "command": "visualConfigurator.manageCustomTypes",
+          "when": "view == visualConfigurator.runConfigurations",
+          "group": "navigation@7"
         }
       ],
       "view/item/context": [

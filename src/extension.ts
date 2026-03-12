@@ -4,6 +4,8 @@ import * as vscode from 'vscode';
 
 import { ConfigStore } from './core/configStore';
 import {
+  CustomRunConfiguration,
+  CustomTypeDefinition,
   DockerComposeConfiguration,
   DockerConfiguration,
   DotnetProjectConfiguration,
@@ -48,6 +50,32 @@ export async function activate(
     { dispose: () => executionService.dispose() }
   );
 
+  // Watch .vscode/visual-configurator.json for external edits
+  const wsFolder = vscode.workspace.workspaceFolders?.[0];
+  if (wsFolder) {
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(wsFolder, '.vscode/visual-configurator.json')
+    );
+    watcher.onDidChange(() => {
+      configStore.reload();
+      treeProvider.refresh();
+      statusBar.refresh();
+    });
+    context.subscriptions.push(watcher);
+  }
+
+  // Auto-populate on first run: silently discover .NET projects and npm scripts
+  if (configStore.isFirstRun) {
+    void autoPopulateDefaults(
+      configStore,
+      dotnetDiscoveryService,
+      npmDiscoveryService
+    ).then(() => {
+      treeProvider.refresh();
+      statusBar.refresh();
+    });
+  }
+
   context.subscriptions.push(
     vscode.commands.registerCommand('visualConfigurator.refresh', () => {
       treeProvider.refresh();
@@ -56,36 +84,56 @@ export async function activate(
     vscode.commands.registerCommand(
       'visualConfigurator.addConfiguration',
       async () => {
-        const choice = await vscode.window.showQuickPick(
-          [
-            {
-              label: '$(symbol-class) .NET Project',
-              description: 'Import a discovered .NET project',
-              value: 'dotnet-project' as const
-            },
-            {
-              label: '$(globe) .NET Launch Profile',
-              description: 'Import from launchSettings.json',
-              value: 'dotnet-launch-profile' as const
-            },
-            {
-              label: '$(package) npm Script',
-              description: 'Import a script from package.json',
-              value: 'npm-script' as const
-            },
-            {
-              label: '$(server-environment) Docker / Podman',
-              description: 'Run a container image',
-              value: 'docker' as const
-            },
-            {
-              label: '$(layers) Docker / Podman Compose',
-              description: 'Run services from a compose file',
-              value: 'docker-compose' as const
-            }
-          ],
-          { title: 'Add Run Configuration', placeHolder: 'Select configuration type' }
-        );
+        interface AddConfigItem extends vscode.QuickPickItem {
+          configKind?: 'dotnet-project' | 'dotnet-launch-profile' | 'npm-script' | 'docker' | 'docker-compose';
+          customType?: CustomTypeDefinition;
+        }
+
+        const builtinItems: AddConfigItem[] = [
+          {
+            label: '$(symbol-class) .NET Project',
+            description: 'Import a discovered .NET project',
+            configKind: 'dotnet-project'
+          },
+          {
+            label: '$(globe) .NET Launch Profile',
+            description: 'Import from launchSettings.json',
+            configKind: 'dotnet-launch-profile'
+          },
+          {
+            label: '$(package) npm Script',
+            description: 'Import a script from package.json',
+            configKind: 'npm-script'
+          },
+          {
+            label: '$(server-environment) Docker / Podman',
+            description: 'Run a container image',
+            configKind: 'docker'
+          },
+          {
+            label: '$(layers) Docker / Podman Compose',
+            description: 'Run services from a compose file',
+            configKind: 'docker-compose'
+          }
+        ];
+
+        const customTypes = configStore.listCustomTypes();
+        const customItems: AddConfigItem[] = customTypes.map(ct => ({
+          label: `$(${ct.icon ?? 'terminal'}) ${ct.label}`,
+          description: ct.description,
+          customType: ct
+        }));
+
+        const allItems: AddConfigItem[] = [...builtinItems];
+        if (customItems.length > 0) {
+          allItems.push({ label: 'Custom Types', kind: vscode.QuickPickItemKind.Separator });
+          allItems.push(...customItems);
+        }
+
+        const choice = await vscode.window.showQuickPick(allItems, {
+          title: 'Add Run Configuration',
+          placeHolder: 'Select configuration type'
+        });
 
         if (!choice) {
           return;
@@ -93,26 +141,30 @@ export async function activate(
 
         let configuration: RunConfiguration | undefined;
 
-        switch (choice.value) {
-          case 'dotnet-project': {
-            configuration = await pickDotnetProject(dotnetDiscoveryService);
-            break;
-          }
-          case 'dotnet-launch-profile': {
-            configuration = await pickLaunchProfile(dotnetDiscoveryService);
-            break;
-          }
-          case 'npm-script': {
-            configuration = await pickNpmScript(npmDiscoveryService);
-            break;
-          }
-          case 'docker': {
-            configuration = buildDockerConfiguration();
-            break;
-          }
-          case 'docker-compose': {
-            configuration = buildDockerComposeConfiguration();
-            break;
+        if (choice.customType) {
+          configuration = buildCustomConfiguration(choice.customType);
+        } else {
+          switch (choice.configKind) {
+            case 'dotnet-project': {
+              configuration = await pickDotnetProject(dotnetDiscoveryService);
+              break;
+            }
+            case 'dotnet-launch-profile': {
+              configuration = await pickLaunchProfile(dotnetDiscoveryService);
+              break;
+            }
+            case 'npm-script': {
+              configuration = await pickNpmScript(npmDiscoveryService);
+              break;
+            }
+            case 'docker': {
+              configuration = buildDockerConfiguration();
+              break;
+            }
+            case 'docker-compose': {
+              configuration = buildDockerComposeConfiguration();
+              break;
+            }
           }
         }
 
@@ -270,6 +322,48 @@ export async function activate(
         void vscode.window.showInformationMessage(
           'Synced .vscode/launch.json and .vscode/tasks.json.'
         );
+      }
+    ),
+    vscode.commands.registerCommand(
+      'visualConfigurator.manageCustomTypes',
+      async () => {
+        const filePath = configStore.getFilePath();
+        if (!filePath) {
+          void vscode.window.showErrorMessage(
+            'Visual Configurator: open a workspace folder to manage configurations.'
+          );
+          return;
+        }
+
+        // Ensure the file exists before opening it
+        const uri = vscode.Uri.file(filePath);
+        try {
+          await vscode.workspace.fs.stat(uri);
+        } catch {
+          // File doesn't exist yet — create a starter template
+          const template = {
+            version: 1,
+            customTypes: [
+              {
+                id: 'my-custom-type',
+                label: 'My Custom Type',
+                description: 'A custom shell command template',
+                icon: 'terminal',
+                command: 'echo',
+                defaultArgs: ['hello world'],
+                defaultEnv: {}
+              }
+            ],
+            configurations: configStore.list(),
+            activeConfigurationId: configStore.getActiveConfigurationId()
+          };
+          await vscode.workspace.fs.writeFile(
+            uri,
+            Buffer.from(`${JSON.stringify(template, null, 2)}\n`, 'utf-8')
+          );
+        }
+
+        await vscode.window.showTextDocument(uri);
       }
     )
   );
@@ -502,6 +596,7 @@ function buildDockerComposeConfiguration(): DockerComposeConfiguration {
     updatedAt: new Date().toISOString(),
     containerRuntime: 'docker',
     composeFilePath: 'docker-compose.yml',
+    downOnStop: false,
     services: [],
     profiles: [],
     composeArgs: [],
@@ -538,4 +633,55 @@ async function resolveConfigurationSelection(
   );
 
   return picked?.configuration;
+}
+
+function buildCustomConfiguration(
+  typeDef: CustomTypeDefinition
+): CustomRunConfiguration {
+  const workspaceFolder =
+    vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+
+  return {
+    id: randomUUID(),
+    name: typeDef.label,
+    kind: 'custom',
+    typeId: typeDef.id,
+    typeLabel: typeDef.label,
+    command: typeDef.command,
+    args: [...typeDef.defaultArgs],
+    workspaceFolder,
+    workingDirectory: workspaceFolder,
+    environment: { ...typeDef.defaultEnv },
+    allowMultipleInstances: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+/**
+ * Called on first activation when no configs exist yet.
+ * Silently discovers .NET projects and npm scripts and adds them to the store.
+ */
+async function autoPopulateDefaults(
+  configStore: ConfigStore,
+  dotnetDiscovery: DotnetDiscoveryService,
+  npmDiscovery: NpmDiscoveryService
+): Promise<void> {
+  const [dotnetProjects, npmPackages] = await Promise.all([
+    dotnetDiscovery.discover().catch(() => []),
+    npmDiscovery.discover().catch(() => [])
+  ]);
+
+  const configurations: RunConfiguration[] = [
+    ...dotnetProjects.map(project => buildDotnetProjectConfiguration(project)),
+    ...npmPackages.flatMap(pkg =>
+      pkg.scripts.map(script =>
+        buildNpmScriptConfiguration(pkg, script.scriptName)
+      )
+    )
+  ];
+
+  for (const config of configurations) {
+    await configStore.upsert(config);
+  }
 }
