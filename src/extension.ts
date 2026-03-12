@@ -6,16 +6,16 @@ import { ConfigStore } from './core/configStore';
 import {
   DotnetProjectConfiguration,
   NpmScriptConfiguration,
-  RunConfiguration
+  RunConfiguration,
+  DetectedDotnetProject,
+  DetectedNpmPackage,
+  LaunchSettingsProfile
 } from './core/configTypes';
 import { DotnetDiscoveryService } from './core/dotnetDiscoveryService';
 import { ExecutionService } from './core/executionService';
 import { FileSyncService } from './core/fileSyncService';
 import { NpmDiscoveryService } from './core/npmDiscoveryService';
 import {
-  DotnetProjectNode,
-  LaunchProfileNode,
-  NpmScriptNode,
   RunConfigurationsTreeProvider,
   SavedConfigurationNode
 } from './views/configTreeProvider';
@@ -33,105 +33,83 @@ export async function activate(
   const configEditorPanel = new ConfigEditorPanel();
   const treeProvider = new RunConfigurationsTreeProvider(
     configStore,
-    dotnetDiscoveryService,
-    npmDiscoveryService
+    context.extensionUri
   );
   const statusBar = new ActiveConfigurationStatusBar(configStore);
 
   context.subscriptions.push(
     vscode.window.createTreeView('visualConfigurator.runConfigurations', {
       treeDataProvider: treeProvider,
-      showCollapseAll: true
+      showCollapseAll: false
     }),
     statusBar,
     { dispose: () => executionService.dispose() }
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('visualConfigurator.refresh', async () => {
-      await treeProvider.refresh();
+    vscode.commands.registerCommand('visualConfigurator.refresh', () => {
+      treeProvider.refresh();
       statusBar.refresh();
     }),
     vscode.commands.registerCommand(
-      'visualConfigurator.importDotnetProject',
-      async (node: DotnetProjectNode) => {
-        const project = node.project;
-        const configuration: DotnetProjectConfiguration = {
-          id: randomUUID(),
-          name: project.name,
-          kind: 'dotnet-project',
-          workspaceFolder: project.workspaceFolder.uri.fsPath,
-          workingDirectory: path.dirname(project.projectPath),
-          environment: {},
-          allowMultipleInstances: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          projectPath: project.projectPath,
-          targetFramework: project.targetFrameworks[0],
-          programArgs: [],
-          runtimeArgs: [],
-          console: 'integratedTerminal',
-          launchBrowser: project.projectKind === 'web'
-        };
+      'visualConfigurator.addConfiguration',
+      async () => {
+        const choice = await vscode.window.showQuickPick(
+          [
+            {
+              label: '$(symbol-class) .NET Project',
+              description: 'Import a discovered .NET project',
+              value: 'dotnet-project' as const
+            },
+            {
+              label: '$(globe) .NET Launch Profile',
+              description: 'Import from launchSettings.json',
+              value: 'dotnet-launch-profile' as const
+            },
+            {
+              label: '$(package) npm Script',
+              description: 'Import a script from package.json',
+              value: 'npm-script' as const
+            }
+          ],
+          { title: 'Add Run Configuration', placeHolder: 'Select configuration type' }
+        );
+
+        if (!choice) {
+          return;
+        }
+
+        let configuration: RunConfiguration | undefined;
+
+        switch (choice.value) {
+          case 'dotnet-project': {
+            configuration = await pickDotnetProject(dotnetDiscoveryService);
+            break;
+          }
+          case 'dotnet-launch-profile': {
+            configuration = await pickLaunchProfile(dotnetDiscoveryService);
+            break;
+          }
+          case 'npm-script': {
+            configuration = await pickNpmScript(npmDiscoveryService);
+            break;
+          }
+        }
+
+        if (!configuration) {
+          return;
+        }
 
         await configStore.upsert(configuration);
         await configStore.setActiveConfiguration(configuration.id);
-        await treeProvider.refresh();
+        treeProvider.refresh();
         statusBar.refresh();
-      }
-    ),
-    vscode.commands.registerCommand(
-      'visualConfigurator.importLaunchProfile',
-      async (node: LaunchProfileNode) => {
-        const configuration: DotnetProjectConfiguration = {
-          id: randomUUID(),
-          name: `${node.project.name} (${node.profile.name})`,
-          kind: 'dotnet-launch-profile',
-          workspaceFolder: node.project.workspaceFolder.uri.fsPath,
-          workingDirectory: path.dirname(node.project.projectPath),
-          environment: node.profile.environmentVariables,
-          allowMultipleInstances: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          projectPath: node.project.projectPath,
-          targetFramework: node.project.targetFrameworks[0],
-          programArgs: node.profile.commandLineArgs,
-          runtimeArgs: [],
-          console: 'integratedTerminal',
-          launchBrowser: node.profile.launchBrowser,
-          launchUrlPath: node.profile.applicationUrl,
-          launchSettingsProfile: node.profile.name
-        };
 
-        await configStore.upsert(configuration);
-        await configStore.setActiveConfiguration(configuration.id);
-        await treeProvider.refresh();
-        statusBar.refresh();
-      }
-    ),
-    vscode.commands.registerCommand(
-      'visualConfigurator.importNpmScript',
-      async (node: NpmScriptNode) => {
-        const configuration: NpmScriptConfiguration = {
-          id: randomUUID(),
-          name: `${node.packageInfo.displayName}: ${node.scriptName}`,
-          kind: 'npm-script',
-          workspaceFolder: node.packageInfo.workspaceFolder.uri.fsPath,
-          workingDirectory: path.dirname(node.packageInfo.packageJsonPath),
-          environment: {},
-          allowMultipleInstances: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          packageJsonPath: node.packageInfo.packageJsonPath,
-          packageManager: node.packageInfo.packageManager,
-          script: node.scriptName,
-          scriptArgs: []
-        };
-
-        await configStore.upsert(configuration);
-        await configStore.setActiveConfiguration(configuration.id);
-        await treeProvider.refresh();
-        statusBar.refresh();
+        await configEditorPanel.open(context, configuration, async updated => {
+          await configStore.upsert(updated);
+          treeProvider.refresh();
+          statusBar.refresh();
+        });
       }
     ),
     vscode.commands.registerCommand(
@@ -148,7 +126,7 @@ export async function activate(
 
         await configStore.setActiveConfiguration(configuration.id);
         statusBar.refresh();
-        await treeProvider.refresh();
+        treeProvider.refresh();
       }
     ),
     vscode.commands.registerCommand(
@@ -161,7 +139,7 @@ export async function activate(
 
         if (!configuration) {
           void vscode.window.showInformationMessage(
-            'Import a .NET project, launch profile, or npm script first.'
+            'Add a run configuration first.'
           );
           return;
         }
@@ -181,7 +159,7 @@ export async function activate(
 
         if (!configuration) {
           void vscode.window.showInformationMessage(
-            'Import a .NET project, launch profile, or npm script first.'
+            'Add a run configuration first.'
           );
           return;
         }
@@ -219,7 +197,7 @@ export async function activate(
         }
 
         await configStore.remove(configuration.id);
-        await treeProvider.refresh();
+        treeProvider.refresh();
         statusBar.refresh();
       }
     ),
@@ -237,7 +215,7 @@ export async function activate(
 
         await configEditorPanel.open(context, configuration, async updated => {
           await configStore.upsert(updated);
-          await treeProvider.refresh();
+          treeProvider.refresh();
           statusBar.refresh();
         });
       }
@@ -277,7 +255,192 @@ export async function activate(
   );
 
   statusBar.show();
-  await treeProvider.refresh();
+}
+
+async function pickDotnetProject(
+  discoveryService: DotnetDiscoveryService
+): Promise<DotnetProjectConfiguration | undefined> {
+  const projects = await discoveryService.discover();
+
+  if (projects.length === 0) {
+    void vscode.window.showInformationMessage(
+      'No .NET projects found in the workspace.'
+    );
+    return undefined;
+  }
+
+  const picked = await vscode.window.showQuickPick(
+    projects.map(project => ({
+      label: project.name,
+      description:
+        project.targetFrameworks.join(', ') || project.projectKind,
+      detail: project.projectPath,
+      project
+    })),
+    { title: 'Select .NET Project' }
+  );
+
+  if (!picked) {
+    return undefined;
+  }
+
+  return buildDotnetProjectConfiguration(picked.project);
+}
+
+async function pickLaunchProfile(
+  discoveryService: DotnetDiscoveryService
+): Promise<DotnetProjectConfiguration | undefined> {
+  const projects = await discoveryService.discover();
+  const withProfiles = projects.filter(
+    project => project.launchProfiles.length > 0
+  );
+
+  if (withProfiles.length === 0) {
+    void vscode.window.showInformationMessage(
+      'No .NET projects with launch profiles found.'
+    );
+    return undefined;
+  }
+
+  const pickedProject = await vscode.window.showQuickPick(
+    withProfiles.map(project => ({
+      label: project.name,
+      detail: project.projectPath,
+      project
+    })),
+    { title: 'Select .NET Project' }
+  );
+
+  if (!pickedProject) {
+    return undefined;
+  }
+
+  const pickedProfile = await vscode.window.showQuickPick(
+    pickedProject.project.launchProfiles.map(profile => ({
+      label: profile.name,
+      description: profile.applicationUrl ?? '',
+      profile
+    })),
+    { title: 'Select Launch Profile' }
+  );
+
+  if (!pickedProfile) {
+    return undefined;
+  }
+
+  return buildLaunchProfileConfiguration(
+    pickedProject.project,
+    pickedProfile.profile
+  );
+}
+
+async function pickNpmScript(
+  discoveryService: NpmDiscoveryService
+): Promise<NpmScriptConfiguration | undefined> {
+  const packages = await discoveryService.discover();
+
+  if (packages.length === 0) {
+    void vscode.window.showInformationMessage(
+      'No npm packages found in the workspace.'
+    );
+    return undefined;
+  }
+
+  const scriptItems = packages.flatMap(pkg =>
+    pkg.scripts.map(script => ({
+      label: script.scriptName,
+      description: `${pkg.displayName} (${pkg.packageManager})`,
+      detail: script.command,
+      packageInfo: pkg,
+      scriptName: script.scriptName
+    }))
+  );
+
+  if (scriptItems.length === 0) {
+    void vscode.window.showInformationMessage('No npm scripts found.');
+    return undefined;
+  }
+
+  const picked = await vscode.window.showQuickPick(scriptItems, {
+    title: 'Select npm Script'
+  });
+
+  if (!picked) {
+    return undefined;
+  }
+
+  return buildNpmScriptConfiguration(
+    picked.packageInfo,
+    picked.scriptName
+  );
+}
+
+function buildDotnetProjectConfiguration(
+  project: DetectedDotnetProject
+): DotnetProjectConfiguration {
+  return {
+    id: randomUUID(),
+    name: project.name,
+    kind: 'dotnet-project',
+    workspaceFolder: project.workspaceFolder.uri.fsPath,
+    workingDirectory: path.dirname(project.projectPath),
+    environment: {},
+    allowMultipleInstances: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    projectPath: project.projectPath,
+    targetFramework: project.targetFrameworks[0],
+    programArgs: [],
+    runtimeArgs: [],
+    console: 'integratedTerminal',
+    launchBrowser: project.projectKind === 'web'
+  };
+}
+
+function buildLaunchProfileConfiguration(
+  project: DetectedDotnetProject,
+  profile: LaunchSettingsProfile
+): DotnetProjectConfiguration {
+  return {
+    id: randomUUID(),
+    name: `${project.name} (${profile.name})`,
+    kind: 'dotnet-launch-profile',
+    workspaceFolder: project.workspaceFolder.uri.fsPath,
+    workingDirectory: path.dirname(project.projectPath),
+    environment: profile.environmentVariables,
+    allowMultipleInstances: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    projectPath: project.projectPath,
+    targetFramework: project.targetFrameworks[0],
+    programArgs: profile.commandLineArgs,
+    runtimeArgs: [],
+    console: 'integratedTerminal',
+    launchBrowser: profile.launchBrowser,
+    launchUrlPath: profile.applicationUrl,
+    launchSettingsProfile: profile.name
+  };
+}
+
+function buildNpmScriptConfiguration(
+  packageInfo: DetectedNpmPackage,
+  scriptName: string
+): NpmScriptConfiguration {
+  return {
+    id: randomUUID(),
+    name: `${packageInfo.displayName}: ${scriptName}`,
+    kind: 'npm-script',
+    workspaceFolder: packageInfo.workspaceFolder.uri.fsPath,
+    workingDirectory: path.dirname(packageInfo.packageJsonPath),
+    environment: {},
+    allowMultipleInstances: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    packageJsonPath: packageInfo.packageJsonPath,
+    packageManager: packageInfo.packageManager,
+    script: scriptName,
+    scriptArgs: []
+  };
 }
 
 async function resolveConfigurationSelection(

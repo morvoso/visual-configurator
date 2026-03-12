@@ -21,19 +21,10 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "visualConfigurator.importDotnetProject",
-        "title": "Import .NET Project",
-        "category": "Visual Configurator"
-      },
-      {
-        "command": "visualConfigurator.importLaunchProfile",
-        "title": "Import Launch Profile",
-        "category": "Visual Configurator"
-      },
-      {
-        "command": "visualConfigurator.importNpmScript",
-        "title": "Import npm Script",
-        "category": "Visual Configurator"
+        "command": "visualConfigurator.addConfiguration",
+        "title": "Add Configuration",
+        "category": "Visual Configurator",
+        "icon": "$(add)"
       },
       {
         "command": "visualConfigurator.setActiveConfiguration",
@@ -86,77 +77,73 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "visualConfigurator.runConfigurations",
+        "contents": "No run configurations yet.\n[Add Configuration](command:visualConfigurator.addConfiguration)"
+      }
+    ],
     "menus": {
       "view/title": [
         {
-          "command": "visualConfigurator.refresh",
+          "command": "visualConfigurator.addConfiguration",
           "when": "view == visualConfigurator.runConfigurations",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
-          "command": "visualConfigurator.runConfiguration",
+          "command": "visualConfigurator.refresh",
           "when": "view == visualConfigurator.runConfigurations",
           "group": "navigation@2"
         },
         {
-          "command": "visualConfigurator.debugConfiguration",
+          "command": "visualConfigurator.runConfiguration",
           "when": "view == visualConfigurator.runConfigurations",
           "group": "navigation@3"
         },
         {
-          "command": "visualConfigurator.stopConfiguration",
+          "command": "visualConfigurator.debugConfiguration",
           "when": "view == visualConfigurator.runConfigurations",
           "group": "navigation@4"
         },
         {
-          "command": "visualConfigurator.syncWorkspaceFiles",
+          "command": "visualConfigurator.stopConfiguration",
           "when": "view == visualConfigurator.runConfigurations",
           "group": "navigation@5"
+        },
+        {
+          "command": "visualConfigurator.syncWorkspaceFiles",
+          "when": "view == visualConfigurator.runConfigurations",
+          "group": "navigation@6"
         }
       ],
       "view/item/context": [
         {
-          "command": "visualConfigurator.importDotnetProject",
-          "when": "view == visualConfigurator.runConfigurations && viewItem == discoveredDotnetProject",
-          "group": "inline"
-        },
-        {
-          "command": "visualConfigurator.importLaunchProfile",
-          "when": "view == visualConfigurator.runConfigurations && viewItem == discoveredLaunchProfile",
-          "group": "inline"
-        },
-        {
-          "command": "visualConfigurator.importNpmScript",
-          "when": "view == visualConfigurator.runConfigurations && viewItem == discoveredNpmScript",
-          "group": "inline"
-        },
-        {
-          "command": "visualConfigurator.setActiveConfiguration",
-          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
-          "group": "navigation"
-        },
-        {
           "command": "visualConfigurator.runConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
-          "group": "inline@2"
+          "group": "inline@1"
         },
         {
           "command": "visualConfigurator.debugConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
-          "group": "inline@3"
+          "group": "inline@2"
         },
         {
           "command": "visualConfigurator.editConfiguration",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
+          "group": "inline@3"
+        },
+        {
+          "command": "visualConfigurator.setActiveConfiguration",
+          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
+          "group": "navigation@1"
+        },
+        {
+          "command": "visualConfigurator.stopConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
           "group": "navigation@2"
         },
         {
           "command": "visualConfigurator.deleteConfiguration",
-          "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
-          "group": "navigation@4"
-        },
-        {
-          "command": "visualConfigurator.stopConfiguration",
           "when": "view == visualConfigurator.runConfigurations && viewItem == savedConfiguration",
           "group": "navigation@3"
         }
