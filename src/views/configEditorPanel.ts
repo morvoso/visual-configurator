@@ -58,9 +58,7 @@ export class ConfigEditorPanel {
     const executionMode = configuration.allowMultipleInstances
       ? 'Parallel launches enabled'
       : 'Single active instance';
-    const executionTarget = configuration.useDocker
-      ? 'Containerized launch'
-      : 'Local machine process';
+
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -408,8 +406,6 @@ export class ConfigEditorPanel {
       align-items: center;
     }
 
-    .docker-extra { display: none; }
-    .docker-extra.show { display: contents; }
   </style>
 </head>
 <body>
@@ -422,9 +418,6 @@ export class ConfigEditorPanel {
         </button>
         <button class="section-nav-button" type="button" data-section="env">
           <span>Environment Variables</span>
-        </button>
-        <button class="section-nav-button" type="button" data-section="docker">
-          <span>Docker / Podman</span>
         </button>
         <button class="section-nav-button" type="button" data-section="advanced">
           <span>Advanced Diagnostics</span>
@@ -532,35 +525,6 @@ export class ConfigEditorPanel {
             </div>
           </div>
 
-          <div class="jb-section" id="docker">
-            <div class="jb-section-header">
-              <div class="jb-section-title">Docker / Podman</div>
-              <div class="jb-section-line"></div>
-            </div>
-            
-            <div class="row">
-              <label class="field-label">Container mode:</label>
-              <div class="control">
-                <label class="jb-checkbox" for="useDocker">
-                  <input id="useDocker" type="checkbox" />
-                  <span class="jb-checkbox-text">
-                    <span>Run in Docker or Podman</span>
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div class="docker-extra" id="dockerExtra">
-              <div class="row">
-                <label for="dockerImageOverride" class="field-label">Image override:</label>
-                <div class="control">
-                  <input id="dockerImageOverride" type="text" placeholder="Leave empty for default" />
-                  <div class="hint" id="dockerHint"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div class="jb-section" id="advanced">
             <div class="jb-section-header">
               <div class="jb-section-title">Advanced</div>
@@ -608,23 +572,8 @@ export class ConfigEditorPanel {
 
     const byId = (id) => document.getElementById(id);
 
-    const defaultDockerImage = () => {
-      if (configuration.kind === 'npm-script') return 'node:lts-alpine';
-      if (configuration.kind === 'dotnet-project' || configuration.kind === 'dotnet-launch-profile') {
-        return 'mcr.microsoft.com/dotnet/sdk:10.0';
-      }
-      return 'not detected';
-    };
-
     const splitArgs = (value) =>
       value.split(/\s+/).map((p) => p.trim()).filter(Boolean);
-
-    const setDockerHint = () => {
-      const override = byId('dockerImageOverride').value.trim();
-      byId('dockerHint').textContent = override
-        ? 'Using override: ' + override
-        : 'Using default: ' + defaultDockerImage();
-    };
 
     const renderEnvRow = (key = '', value = '') => {
       const tr = document.createElement('tr');
@@ -662,6 +611,28 @@ export class ConfigEditorPanel {
         fieldB.value = configuration.script || '';
         fieldC.innerHTML = '<option value="npm">npm</option><option value="yarn">yarn</option><option value="pnpm">pnpm</option>';
         fieldC.value = configuration.packageManager;
+      } else if (configuration.kind === 'docker') {
+        byId('fieldALabel').textContent = 'Image:';
+        byId('fieldBLabel').textContent = 'Command:';
+        byId('fieldCLabel').textContent = 'Container Runtime:';
+        byId('fieldAHint').textContent = 'Docker / Podman image to run';
+        byId('fieldBHint').textContent = 'Command to execute inside the container';
+        byId('fieldCHint').textContent = 'Container engine to use';
+        fieldA.value = configuration.image || '';
+        fieldB.value = configuration.command || '';
+        fieldC.innerHTML = '<option value="docker">Docker</option><option value="podman">Podman</option>';
+        fieldC.value = configuration.containerRuntime;
+      } else if (configuration.kind === 'docker-compose') {
+        byId('fieldALabel').textContent = 'Compose file:';
+        byId('fieldBLabel').textContent = 'Services:';
+        byId('fieldCLabel').textContent = 'Container Runtime:';
+        byId('fieldAHint').textContent = 'Path to docker-compose.yml or compose.yaml';
+        byId('fieldBHint').textContent = 'Comma-separated service names (blank = all)';
+        byId('fieldCHint').textContent = 'Container engine to use';
+        fieldA.value = configuration.composeFilePath || '';
+        fieldB.value = (configuration.services || []).join(', ');
+        fieldC.innerHTML = '<option value="docker">Docker</option><option value="podman">Podman</option>';
+        fieldC.value = configuration.containerRuntime;
       } else {
         byId('fieldALabel').textContent = 'Program args:';
         byId('fieldBLabel').textContent = 'Runtime args:';
@@ -681,8 +652,6 @@ export class ConfigEditorPanel {
       byId('kind').value = configuration.kind;
       byId('workingDirectory').value = configuration.workingDirectory;
       byId('allowMultipleInstances').checked = Boolean(configuration.allowMultipleInstances);
-      byId('useDocker').checked = Boolean(configuration.useDocker);
-      byId('dockerImageOverride').value = configuration.dockerImageOverride || '';
       byId('captureOutput').checked = Boolean(configuration.captureOutput);
       byId('showTimestamps').checked = Boolean(configuration.showTimestamps);
 
@@ -695,8 +664,6 @@ export class ConfigEditorPanel {
       }
 
       setupKindSpecificFields();
-      byId('dockerExtra').style.display = byId('useDocker').checked ? 'block' : 'none';
-      setDockerHint();
     };
 
     byId('addEnv').addEventListener('click', () => renderEnvRow('', ''));
@@ -705,13 +672,6 @@ export class ConfigEditorPanel {
       renderEnvRow('', '');
     });
 
-    byId('useDocker').addEventListener('change', () => {
-      byId('dockerExtra').style.display = byId('useDocker').checked ? 'block' : 'none';
-      setDockerHint();
-    });
-    
-    byId('dockerImageOverride').addEventListener('input', setDockerHint);
-    
     byId('name').addEventListener('input', () => {
       byId('configurationTitle').textContent = byId('name').value.trim() || configuration.name;
     });
@@ -738,8 +698,6 @@ export class ConfigEditorPanel {
       updated.workingDirectory = byId('workingDirectory').value.trim() || configuration.workingDirectory;
       updated.allowMultipleInstances = byId('allowMultipleInstances').checked;
       updated.environment = getEnvMap();
-      updated.useDocker = byId('useDocker').checked;
-      updated.dockerImageOverride = byId('dockerImageOverride').value.trim() || undefined;
       updated.captureOutput = byId('captureOutput').checked;
       updated.showTimestamps = byId('showTimestamps').checked;
       updated.updatedAt = new Date().toISOString();
@@ -748,6 +706,14 @@ export class ConfigEditorPanel {
         updated.scriptArgs = splitArgs(byId('fieldA').value);
         updated.script = byId('fieldB').value.trim() || updated.script;
         updated.packageManager = byId('fieldC').value;
+      } else if (updated.kind === 'docker') {
+        updated.image = byId('fieldA').value.trim() || updated.image;
+        updated.command = byId('fieldB').value.trim();
+        updated.containerRuntime = byId('fieldC').value;
+      } else if (updated.kind === 'docker-compose') {
+        updated.composeFilePath = byId('fieldA').value.trim() || updated.composeFilePath;
+        updated.services = byId('fieldB').value.split(',').map(s => s.trim()).filter(Boolean);
+        updated.containerRuntime = byId('fieldC').value;
       } else {
         updated.programArgs = splitArgs(byId('fieldA').value);
         updated.runtimeArgs = splitArgs(byId('fieldB').value);
@@ -781,6 +747,10 @@ function describeConfigurationKind(configuration: RunConfiguration): string {
       return '.NET Launch Profile';
     case 'dotnet-project':
       return '.NET Project';
+    case 'docker':
+      return `Container (${configuration.containerRuntime})`;
+    case 'docker-compose':
+      return `Compose (${configuration.containerRuntime})`;
   }
 }
 
@@ -792,11 +762,23 @@ function describeConfigurationDetail(configuration: RunConfiguration): string {
       return 'Launch profile settings imported from launchSettings.json with editable runtime behavior.';
     case 'dotnet-project':
       return 'Project-level .NET execution settings, runtime arguments, and browser launch options.';
+    case 'docker':
+      return 'Container-based execution using Docker or Podman with image, port, and volume configuration.';
+    case 'docker-compose':
+      return 'Multi-service orchestration using a Docker or Podman Compose file.';
   }
 }
 
 function getConfigurationBadgeClass(configuration: RunConfiguration): string {
-  return configuration.kind === 'npm-script' ? 'kind-npm' : 'kind-dotnet';
+  switch (configuration.kind) {
+    case 'npm-script':
+      return 'kind-npm';
+    case 'docker':
+    case 'docker-compose':
+      return 'kind-docker';
+    default:
+      return 'kind-dotnet';
+  }
 }
 
 function escapeForHtml(value: string): string {

@@ -2,6 +2,8 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import {
+  DockerComposeConfiguration,
+  DockerConfiguration,
   DotnetProjectConfiguration,
   NpmScriptConfiguration,
   RunConfiguration
@@ -52,6 +54,9 @@ export class FileSyncService {
           return [this.createDotnetLaunchConfiguration(configuration)];
         case 'npm-script':
           return [this.createNpmLaunchConfiguration(configuration)];
+        case 'docker':
+        case 'docker-compose':
+          return [];
       }
     });
 
@@ -62,13 +67,17 @@ export class FileSyncService {
   }
 
   private createTasksJson(configurations: RunConfiguration[]): TasksJson {
-    const tasks = configurations.map(configuration => {
+    const tasks = configurations.flatMap(configuration => {
       switch (configuration.kind) {
         case 'dotnet-project':
         case 'dotnet-launch-profile':
-          return this.createDotnetTaskDefinition(configuration);
+          return [this.createDotnetTaskDefinition(configuration)];
         case 'npm-script':
-          return this.createNpmTaskDefinition(configuration);
+          return [this.createNpmTaskDefinition(configuration)];
+        case 'docker':
+          return [this.createDockerTaskDefinition(configuration)];
+        case 'docker-compose':
+          return [this.createDockerComposeTaskDefinition(configuration)];
       }
     });
 
@@ -196,5 +205,79 @@ export class FileSyncService {
 
   private taskLabelFor(configuration: RunConfiguration): string {
     return `visualConfigurator:${configuration.name}`;
+  }
+
+  private createDockerComposeTaskDefinition(
+    configuration: DockerComposeConfiguration
+  ): Record<string, unknown> {
+    const runtime = configuration.containerRuntime;
+    const args: string[] = ['compose', '-f', configuration.composeFilePath];
+
+    for (const arg of configuration.composeArgs) {
+      args.push(arg);
+    }
+
+    for (const profile of configuration.profiles) {
+      args.push('--profile', profile);
+    }
+
+    args.push('up');
+
+    for (const arg of configuration.upArgs) {
+      args.push(arg);
+    }
+
+    if (configuration.services.length > 0) {
+      args.push(...configuration.services);
+    }
+
+    return {
+      label: this.taskLabelFor(configuration),
+      type: 'shell',
+      command: runtime,
+      args,
+      options: {
+        cwd: configuration.workingDirectory,
+        env: configuration.environment
+      },
+      problemMatcher: []
+    };
+  }
+
+  private createDockerTaskDefinition(
+    configuration: DockerConfiguration
+  ): Record<string, unknown> {
+    const runtime = configuration.containerRuntime;
+    const args: string[] = ['run', '--rm'];
+
+    for (const port of configuration.ports) {
+      args.push('-p', port);
+    }
+
+    for (const volume of configuration.volumes) {
+      args.push('-v', volume);
+    }
+
+    for (const [key, value] of Object.entries(configuration.environment)) {
+      args.push('-e', `${key}=${value}`);
+    }
+
+    args.push(...configuration.containerArgs);
+    args.push(configuration.image);
+
+    if (configuration.command) {
+      args.push(...configuration.command.split(/\s+/));
+    }
+
+    return {
+      label: this.taskLabelFor(configuration),
+      type: 'shell',
+      command: runtime,
+      args,
+      options: {
+        cwd: configuration.workingDirectory
+      },
+      problemMatcher: []
+    };
   }
 }

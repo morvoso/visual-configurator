@@ -4,6 +4,8 @@ import * as vscode from 'vscode';
 
 import { ConfigStore } from './core/configStore';
 import {
+  DockerComposeConfiguration,
+  DockerConfiguration,
   DotnetProjectConfiguration,
   NpmScriptConfiguration,
   RunConfiguration,
@@ -70,6 +72,16 @@ export async function activate(
               label: '$(package) npm Script',
               description: 'Import a script from package.json',
               value: 'npm-script' as const
+            },
+            {
+              label: '$(server-environment) Docker / Podman',
+              description: 'Run a container image',
+              value: 'docker' as const
+            },
+            {
+              label: '$(layers) Docker / Podman Compose',
+              description: 'Run services from a compose file',
+              value: 'docker-compose' as const
             }
           ],
           { title: 'Add Run Configuration', placeHolder: 'Select configuration type' }
@@ -92,6 +104,14 @@ export async function activate(
           }
           case 'npm-script': {
             configuration = await pickNpmScript(npmDiscoveryService);
+            break;
+          }
+          case 'docker': {
+            configuration = buildDockerConfiguration();
+            break;
+          }
+          case 'docker-compose': {
+            configuration = buildDockerComposeConfiguration();
             break;
           }
         }
@@ -440,6 +460,52 @@ function buildNpmScriptConfiguration(
     packageManager: packageInfo.packageManager,
     script: scriptName,
     scriptArgs: []
+  };
+}
+
+function buildDockerConfiguration(): DockerConfiguration {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  const workspaceFolder = workspaceFolders?.[0]?.uri.fsPath ?? '';
+
+  return {
+    id: randomUUID(),
+    name: 'Docker Container',
+    kind: 'docker',
+    workspaceFolder,
+    workingDirectory: workspaceFolder,
+    environment: {},
+    allowMultipleInstances: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    containerRuntime: 'docker',
+    image: '',
+    command: '',
+    containerArgs: [],
+    ports: [],
+    volumes: []
+  };
+}
+
+function buildDockerComposeConfiguration(): DockerComposeConfiguration {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  const workspaceFolder = workspaceFolders?.[0]?.uri.fsPath ?? '';
+
+  return {
+    id: randomUUID(),
+    name: 'Docker Compose',
+    kind: 'docker-compose',
+    workspaceFolder,
+    workingDirectory: workspaceFolder,
+    environment: {},
+    allowMultipleInstances: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    containerRuntime: 'docker',
+    composeFilePath: 'docker-compose.yml',
+    services: [],
+    profiles: [],
+    composeArgs: [],
+    upArgs: []
   };
 }
 

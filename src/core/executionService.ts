@@ -2,6 +2,8 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import {
+  DockerComposeConfiguration,
+  DockerConfiguration,
   DotnetProjectConfiguration,
   NpmScriptConfiguration,
   RunConfiguration
@@ -107,6 +109,10 @@ export class ExecutionService {
         return this.createDotnetTask(configuration);
       case 'npm-script':
         return this.createNpmTask(configuration);
+      case 'docker':
+        return this.createDockerTask(configuration);
+      case 'docker-compose':
+        return this.createDockerComposeTask(configuration);
     }
   }
 
@@ -187,6 +193,9 @@ export class ExecutionService {
         return this.createDotnetDebugConfiguration(configuration);
       case 'npm-script':
         return this.createNpmDebugConfiguration(configuration);
+      case 'docker':
+      case 'docker-compose':
+        return undefined;
     }
   }
 
@@ -245,5 +254,87 @@ export class ExecutionService {
       console: 'integratedTerminal',
       autoAttachChildProcesses: true
     };
+  }
+
+  private createDockerTask(
+    configuration: DockerConfiguration
+  ): vscode.Task {
+    const runtime = configuration.containerRuntime;
+    const args = ['run', '--rm'];
+
+    for (const port of configuration.ports) {
+      args.push('-p', port);
+    }
+
+    for (const volume of configuration.volumes) {
+      args.push('-v', volume);
+    }
+
+    for (const [key, value] of Object.entries(configuration.environment)) {
+      args.push('-e', `${key}=${value}`);
+    }
+
+    args.push(...configuration.containerArgs);
+    args.push(configuration.image);
+
+    if (configuration.command) {
+      args.push(...configuration.command.split(/\s+/));
+    }
+
+    const execution = new vscode.ProcessExecution(runtime, args, {
+      cwd: configuration.workingDirectory
+    });
+
+    return new vscode.Task(
+      {
+        type: 'process',
+        name: configuration.name
+      },
+      vscode.TaskScope.Workspace,
+      configuration.name,
+      'Visual Configurator',
+      execution
+    );
+  }
+
+  private createDockerComposeTask(
+    configuration: DockerComposeConfiguration
+  ): vscode.Task {
+    const runtime = configuration.containerRuntime;
+    const args = ['compose', '-f', configuration.composeFilePath];
+
+    for (const arg of configuration.composeArgs) {
+      args.push(arg);
+    }
+
+    for (const profile of configuration.profiles) {
+      args.push('--profile', profile);
+    }
+
+    args.push('up');
+
+    for (const arg of configuration.upArgs) {
+      args.push(arg);
+    }
+
+    if (configuration.services.length > 0) {
+      args.push(...configuration.services);
+    }
+
+    const execution = new vscode.ProcessExecution(runtime, args, {
+      cwd: configuration.workingDirectory,
+      env: configuration.environment
+    });
+
+    return new vscode.Task(
+      {
+        type: 'process',
+        name: configuration.name
+      },
+      vscode.TaskScope.Workspace,
+      configuration.name,
+      'Visual Configurator',
+      execution
+    );
   }
 }

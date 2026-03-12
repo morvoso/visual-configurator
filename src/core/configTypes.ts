@@ -3,9 +3,13 @@ import * as vscode from 'vscode';
 export type ConfigurationKind =
   | 'dotnet-project'
   | 'dotnet-launch-profile'
-  | 'npm-script';
+  | 'npm-script'
+  | 'docker'
+  | 'docker-compose';
 
 export type PackageManager = 'npm' | 'yarn' | 'pnpm';
+
+export type ContainerRuntime = 'docker' | 'podman';
 
 export interface BaseRunConfiguration {
   id: string;
@@ -17,8 +21,6 @@ export interface BaseRunConfiguration {
   allowMultipleInstances: boolean;
   createdAt: string;
   updatedAt: string;
-  useDocker?: boolean;
-  dockerImageOverride?: string;
   captureOutput?: boolean;
   showTimestamps?: boolean;
 }
@@ -43,9 +45,33 @@ export interface NpmScriptConfiguration extends BaseRunConfiguration {
   scriptArgs: string[];
 }
 
+export interface DockerConfiguration extends BaseRunConfiguration {
+  kind: 'docker';
+  containerRuntime: ContainerRuntime;
+  image: string;
+  command: string;
+  containerArgs: string[];
+  ports: string[];
+  volumes: string[];
+  buildContext?: string;
+  dockerfile?: string;
+}
+
+export interface DockerComposeConfiguration extends BaseRunConfiguration {
+  kind: 'docker-compose';
+  containerRuntime: ContainerRuntime;
+  composeFilePath: string;
+  services: string[];
+  profiles: string[];
+  composeArgs: string[];
+  upArgs: string[];
+}
+
 export type RunConfiguration =
   | DotnetProjectConfiguration
-  | NpmScriptConfiguration;
+  | NpmScriptConfiguration
+  | DockerConfiguration
+  | DockerComposeConfiguration;
 
 export interface LaunchSettingsProfile {
   name: string;

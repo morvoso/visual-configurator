@@ -65,7 +65,14 @@ export class RunConfigurationsTreeProvider
   private getIconForKind(
     kind: ConfigurationKind
   ): { light: vscode.Uri; dark: vscode.Uri } {
-    const base = kind === 'npm-script' ? 'npm' : 'dotnet';
+    const base =
+      kind === 'npm-script'
+        ? 'npm'
+        : kind === 'docker'
+          ? 'docker'
+          : kind === 'docker-compose'
+            ? 'compose'
+            : 'dotnet';
 
     return {
       light: vscode.Uri.joinPath(
@@ -92,6 +99,10 @@ function describeKind(configuration: RunConfiguration): string {
       return `.NET: ${configuration.launchSettingsProfile}`;
     case 'dotnet-project':
       return '.NET project';
+    case 'docker':
+      return `${configuration.containerRuntime}: ${configuration.image}`;
+    case 'docker-compose':
+      return `${configuration.containerRuntime} compose`;
   }
 }
 
